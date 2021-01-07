@@ -9,7 +9,12 @@ var (
 type Registry interface {
 	Init(...Option) error
 	Options() Options
-	Register() error
+	Register(*Service, ...RegisterOption) error
+	Deregister(*Service, ...DeregisterOption) error
+	GetService(string, ...GetOption) ([]*Service, error)
+	ListServices(...ListOption) ([]*Service, error)
+	Watch(...WatchOption) (Watcher, error)
+	String() string
 }
 
 type Service struct {
