@@ -118,13 +118,6 @@ func NewOptions(options ...Option) Options {
 	return opts
 }
 
-// Broker to be used for pub/sub
-func Broker(b broker.Broker) Option {
-	return func(o *Options) {
-		o.Broker = b
-	}
-}
-
 // Codec to be used to encode/decode requests for a given content type
 func Codec(contentType string, c codec.NewCodec) Option {
 	return func(o *Options) {

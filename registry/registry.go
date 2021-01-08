@@ -3,7 +3,8 @@ package registry
 import "errors"
 
 var (
-	ErrNotFound = errors.New("service not found")
+	DefaultRegistry = NewRegistry()
+	ErrNotFound     = errors.New("service not found")
 )
 
 type Registry interface {

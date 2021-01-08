@@ -1,8 +1,10 @@
 package registry
 
 import (
+	"context"
 	"errors"
 	"github.com/coreos/etcd/clientv3"
+	"time"
 )
 
 type etcdWatcher struct {
