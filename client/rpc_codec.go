@@ -6,6 +6,7 @@ import (
 	"github.com/w3liu/bull/errors"
 
 	"github.com/w3liu/bull/codec"
+	raw "github.com/w3liu/bull/codec/bytes"
 	"github.com/w3liu/bull/registry"
 	"github.com/w3liu/bull/transport"
 )
@@ -75,16 +76,16 @@ func getHeaders(m *codec.Message) {
 	}
 
 	// check error in header
-	m.Error = set(m.Error, "Micro-Error")
+	m.Error = set(m.Error, "Bull-Error")
 
 	// check endpoint in header
-	m.Endpoint = set(m.Endpoint, "Micro-Endpoint")
+	m.Endpoint = set(m.Endpoint, "Bull-Endpoint")
 
 	// check method in header
-	m.Method = set(m.Method, "Micro-Method")
+	m.Method = set(m.Method, "Bull-Method")
 
 	// set the request id
-	m.Id = set(m.Id, "Micro-Id")
+	m.Id = set(m.Id, "Bull-Id")
 }
 
 func setHeaders(m *codec.Message, stream string) {
@@ -95,14 +96,14 @@ func setHeaders(m *codec.Message, stream string) {
 		m.Header[hdr] = v
 	}
 
-	set("Micro-Id", m.Id)
-	set("Micro-Service", m.Target)
-	set("Micro-Method", m.Method)
-	set("Micro-Endpoint", m.Endpoint)
-	set("Micro-Error", m.Error)
+	set("Bull-Id", m.Id)
+	set("Bull-Service", m.Target)
+	set("Bull-Method", m.Method)
+	set("Bull-Endpoint", m.Endpoint)
+	set("Bull-Error", m.Error)
 
 	if len(stream) > 0 {
-		set("Micro-Stream", stream)
+		set("Bull-Stream", stream)
 	}
 }
 
@@ -116,7 +117,7 @@ func setupProtocol(msg *transport.Message, node *registry.Node) codec.NewCodec {
 	}
 
 	// processing topic publishing
-	if len(msg.Header["Micro-Topic"]) > 0 {
+	if len(msg.Header["Bull-Topic"]) > 0 {
 		return nil
 	}
 
@@ -171,7 +172,7 @@ func (c *rpcCodec) Write(m *codec.Message, body interface{}) error {
 		} else {
 			// write to codec
 			if err := c.codec.Write(m, body); err != nil {
-				return errors.InternalServerError("go.micro.client.codec", err.Error())
+				return errors.InternalServerError("go.bull.client.codec", err.Error())
 			}
 			// set body
 			m.Body = c.buf.wbuf.Bytes()
@@ -186,7 +187,7 @@ func (c *rpcCodec) Write(m *codec.Message, body interface{}) error {
 
 	// send the request
 	if err := c.client.Send(&msg); err != nil {
-		return errors.InternalServerError("go.micro.client.transport", err.Error())
+		return errors.InternalServerError("go.bull.client.transport", err.Error())
 	}
 
 	return nil
@@ -197,7 +198,7 @@ func (c *rpcCodec) ReadHeader(m *codec.Message, r codec.MessageType) error {
 
 	// read message from transport
 	if err := c.client.Recv(&tm); err != nil {
-		return errors.InternalServerError("go.micro.client.transport", err.Error())
+		return errors.InternalServerError("go.bull.client.transport", err.Error())
 	}
 
 	c.buf.rbuf.Reset()
@@ -214,7 +215,7 @@ func (c *rpcCodec) ReadHeader(m *codec.Message, r codec.MessageType) error {
 
 	// return header error
 	if err != nil {
-		return errors.InternalServerError("go.micro.client.codec", err.Error())
+		return errors.InternalServerError("go.bull.client.codec", err.Error())
 	}
 
 	return nil
@@ -229,7 +230,7 @@ func (c *rpcCodec) ReadBody(b interface{}) error {
 	}
 
 	if err := c.codec.ReadBody(b); err != nil {
-		return errors.InternalServerError("go.micro.client.codec", err.Error())
+		return errors.InternalServerError("go.bull.client.codec", err.Error())
 	}
 	return nil
 }
@@ -238,7 +239,7 @@ func (c *rpcCodec) Close() error {
 	c.buf.Close()
 	c.codec.Close()
 	if err := c.client.Close(); err != nil {
-		return errors.InternalServerError("go.micro.client.transport", err.Error())
+		return errors.InternalServerError("go.bull.client.transport", err.Error())
 	}
 	return nil
 }

@@ -7,14 +7,14 @@ import (
 )
 
 func TestFromError(t *testing.T) {
-	err := NotFound("go.micro.test", "%s", "example")
+	err := NotFound("go.bull.test", "%s", "example")
 	merr := FromError(err)
-	if merr.Id != "go.micro.test" || merr.Code != 404 {
+	if merr.Id != "go.bull.test" || merr.Code != 404 {
 		t.Fatalf("invalid conversation %v != %v", err, merr)
 	}
 	err = er.New(err.Error())
 	merr = FromError(err)
-	if merr.Id != "go.micro.test" || merr.Code != 404 {
+	if merr.Id != "go.bull.test" || merr.Code != 404 {
 		t.Fatalf("invalid conversation %v != %v", err, merr)
 	}
 

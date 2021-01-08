@@ -6,13 +6,12 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
-// microTransport satisfies the pb.TransportServer inteface
-type microTransport struct {
+type bullTransport struct {
 	addr string
 	fn   func(Socket)
 }
 
-func (m *microTransport) Stream(ts pb.Transport_StreamServer) (err error) {
+func (m *bullTransport) Stream(ts pb.Transport_StreamServer) (err error) {
 
 	sock := &grpcTransportSocket{
 		stream: ts,
@@ -28,7 +27,7 @@ func (m *microTransport) Stream(ts pb.Transport_StreamServer) (err error) {
 		if r := recover(); r != nil {
 			//logger.Error(r, string(debug.Stack()))
 			sock.Close()
-			err = errors.InternalServerError("go.micro.transport", "panic recovered: %v", r)
+			err = errors.InternalServerError("go.bull.transport", "panic recovered: %v", r)
 		}
 	}()
 
