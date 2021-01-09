@@ -3,6 +3,11 @@ package client
 import (
 	"bytes"
 	errs "errors"
+	"github.com/w3liu/bull/codec/grpc"
+	"github.com/w3liu/bull/codec/json"
+	"github.com/w3liu/bull/codec/jsonrpc"
+	"github.com/w3liu/bull/codec/proto"
+	"github.com/w3liu/bull/codec/protorpc"
 	"github.com/w3liu/bull/errors"
 
 	"github.com/w3liu/bull/codec"
@@ -47,10 +52,25 @@ type readWriteCloser struct {
 var (
 	DefaultContentType = "application/protobuf"
 
-	DefaultCodecs = map[string]codec.NewCodec{}
+	DefaultCodecs = map[string]codec.NewCodec{
+		"application/grpc":         grpc.NewCodec,
+		"application/grpc+json":    grpc.NewCodec,
+		"application/grpc+proto":   grpc.NewCodec,
+		"application/protobuf":     proto.NewCodec,
+		"application/json":         json.NewCodec,
+		"application/json-rpc":     jsonrpc.NewCodec,
+		"application/proto-rpc":    protorpc.NewCodec,
+		"application/octet-stream": raw.NewCodec,
+	}
 
 	// TODO: remove legacy codec list
-	defaultCodecs = map[string]codec.NewCodec{}
+	defaultCodecs = map[string]codec.NewCodec{
+		"application/json":         jsonrpc.NewCodec,
+		"application/json-rpc":     jsonrpc.NewCodec,
+		"application/protobuf":     protorpc.NewCodec,
+		"application/proto-rpc":    protorpc.NewCodec,
+		"application/octet-stream": protorpc.NewCodec,
+	}
 )
 
 func (rwc *readWriteCloser) Read(p []byte) (n int, err error) {

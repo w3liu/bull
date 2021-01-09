@@ -2,6 +2,7 @@ package bull
 
 import (
 	"github.com/w3liu/bull/client"
+	"github.com/w3liu/bull/debug/handler"
 	signalutil "github.com/w3liu/bull/infra/signal"
 	"github.com/w3liu/bull/logger"
 	"github.com/w3liu/bull/server"
@@ -97,6 +98,14 @@ func (s *service) Stop() error {
 
 func (s *service) Run() error {
 	logger.Infof("Starting [service] %s", s.Name())
+
+	// register the debug handler
+	s.opts.Server.Handle(
+		s.opts.Server.NewHandler(
+			handler.NewHandler(s.opts.Client),
+			server.InternalHandler(true),
+		),
+	)
 
 	if err := s.Start(); err != nil {
 		return err

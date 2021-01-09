@@ -20,6 +20,10 @@ type Server interface {
 	Init(...Option) error
 	// Retrieve the options
 	Options() Options
+	// Register a handler
+	Handle(Handler) error
+	// Create a new handler
+	NewHandler(interface{}, ...HandlerOption) Handler
 	// Start the server
 	Start() error
 	// Stop the server
@@ -133,13 +137,13 @@ var (
 	DefaultName                    = "go.bull.server"
 	DefaultVersion                 = "latest"
 	DefaultId                      = uuid.New().String()
-	DefaultServer           Server = newRpcServer()
+	DefaultServer           Server = newGRPCServer()
 	DefaultRegisterCheck           = func(context.Context) error { return nil }
 	DefaultRegisterInterval        = time.Second * 30
 	DefaultRegisterTTL             = time.Second * 90
 
 	// NewServer creates a new server
-	NewServer func(...Option) Server = newRpcServer
+	NewServer func(...Option) Server = newGRPCServer
 )
 
 // DefaultOptions returns config options for the default service
@@ -150,7 +154,7 @@ func DefaultOptions() Options {
 // Init initialises the default server with options passed in
 func Init(opt ...Option) {
 	if DefaultServer == nil {
-		DefaultServer = newRpcServer(opt...)
+		DefaultServer = newGRPCServer()
 	}
 	DefaultServer.Init(opt...)
 }
