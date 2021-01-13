@@ -2,25 +2,17 @@ package registry
 
 import (
 	"context"
-	"crypto/tls"
 	"time"
 )
 
 type Options struct {
-	Addrs     []string
-	Timeout   time.Duration
-	Secure    bool
-	TLSConfig *tls.Config
-	Context   context.Context
+	Addrs   []string
+	Timeout time.Duration
+	Context context.Context
 }
 
 type RegisterOptions struct {
 	TTL     time.Duration
-	Context context.Context
-}
-
-type WatchOptions struct {
-	Service string
 	Context context.Context
 }
 
@@ -48,18 +40,6 @@ func Timeout(t time.Duration) Option {
 	}
 }
 
-func Secure(b bool) Option {
-	return func(o *Options) {
-		o.Secure = b
-	}
-}
-
-func TLSConfig(t *tls.Config) Option {
-	return func(o *Options) {
-		o.TLSConfig = t
-	}
-}
-
 func RegisterTTL(t time.Duration) RegisterOption {
 	return func(o *RegisterOptions) {
 		o.TTL = t
@@ -68,12 +48,6 @@ func RegisterTTL(t time.Duration) RegisterOption {
 
 func RegisterContext(ctx context.Context) RegisterOption {
 	return func(o *RegisterOptions) {
-		o.Context = ctx
-	}
-}
-
-func WatchContext(ctx context.Context) WatchOption {
-	return func(o *WatchOptions) {
 		o.Context = ctx
 	}
 }

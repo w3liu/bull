@@ -1,12 +1,5 @@
 package registry
 
-import "errors"
-
-var (
-	DefaultRegistry = NewRegistry()
-	ErrNotFound     = errors.New("service not found")
-)
-
 type Registry interface {
 	Init(...Option) error
 	Options() Options
@@ -14,16 +7,14 @@ type Registry interface {
 	Deregister(*Service, ...DeregisterOption) error
 	GetService(string, ...GetOption) ([]*Service, error)
 	ListServices(...ListOption) ([]*Service, error)
-	Watch(...WatchOption) (Watcher, error)
 	String() string
 }
 
 type Service struct {
-	Name      string            `json:"name"`
-	Version   string            `json:"version"`
-	Metadata  map[string]string `json:"metadata"`
-	Endpoints []*Endpoint       `json:"endpoints"`
-	Nodes     []*Node           `json:"nodes"`
+	Name     string            `json:"name"`
+	Version  string            `json:"version"`
+	Metadata map[string]string `json:"metadata"`
+	Nodes    []*Node           `json:"nodes"`
 }
 
 type Node struct {
@@ -32,24 +23,9 @@ type Node struct {
 	Metadata map[string]string `json:"metadata"`
 }
 
-type Endpoint struct {
-	Name     string            `json:"name"`
-	Request  *Value            `json:"request"`
-	Response *Value            `json:"response"`
-	Metadata map[string]string `json:"metadata"`
-}
-
-type Value struct {
-	Name   string   `json:"name"`
-	Type   string   `json:"type"`
-	Values []*Value `json:"values"`
-}
-
 type Option func(*Options)
 
 type RegisterOption func(*RegisterOptions)
-
-type WatchOption func(*WatchOptions)
 
 type DeregisterOption func(*DeregisterOptions)
 

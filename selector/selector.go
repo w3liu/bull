@@ -5,6 +5,11 @@ import (
 	"github.com/w3liu/bull/registry"
 )
 
+var (
+	ErrNotFound      = errors.New("not found")
+	ErrNoneAvailable = errors.New("none available")
+)
+
 // Selector builds on the registry as a mechanism to pick nodes
 // and mark their status. This allows host pools and other things
 // to be built using various algorithms.
@@ -32,10 +37,3 @@ type Filter func([]*registry.Service) []*registry.Service
 
 // Strategy is a selection strategy e.g random, round robin
 type Strategy func([]*registry.Service) Next
-
-var (
-	DefaultSelector = NewSelector()
-
-	ErrNotFound      = errors.New("not found")
-	ErrNoneAvailable = errors.New("none available")
-)
