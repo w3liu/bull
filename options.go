@@ -22,3 +22,55 @@ type Options struct {
 	// can be stored in a context
 	Context context.Context
 }
+
+func newOptions(opts ...Option) Options {
+	opt := Options{
+		Client:      nil,
+		Server:      nil,
+		Registry:    nil,
+		BeforeStart: nil,
+		BeforeStop:  nil,
+		AfterStart:  nil,
+		AfterStop:   nil,
+		Context:     context.Background(),
+	}
+
+	for _, o := range opts {
+		o(&opt)
+	}
+
+	return opt
+}
+
+// Client to be used for service
+func Client(c client.Client) Option {
+	return func(o *Options) {
+		o.Client = c
+	}
+}
+
+// Context specifies a context for the service.
+// Can be used to signal shutdown of the service and for extra option values.
+func Context(ctx context.Context) Option {
+	return func(o *Options) {
+		o.Context = ctx
+	}
+}
+
+// Server to be used for service
+func Server(s server.Server) Option {
+	return func(o *Options) {
+		o.Server = s
+	}
+}
+
+// Registry sets the registry for the service
+// and the underlying components
+func Registry(r registry.Registry) Option {
+	return func(o *Options) {
+		o.Registry = r
+		// Update Client and Server
+		o.Client.Init(client.Registry(r))
+		o.Server.Init(server.Registry(r))
+	}
+}
