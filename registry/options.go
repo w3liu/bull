@@ -16,6 +16,15 @@ type RegisterOptions struct {
 	Context context.Context
 }
 
+type WatchOptions struct {
+	// Specify a service to watch
+	// If blank, the watch is for all services
+	Service string
+	// Other options for implementations of the interface
+	// can be stored in a context
+	Context context.Context
+}
+
 type DeregisterOptions struct {
 	Context context.Context
 }

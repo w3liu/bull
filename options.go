@@ -25,14 +25,10 @@ type Options struct {
 
 func newOptions(opts ...Option) Options {
 	opt := Options{
-		Client:      nil,
-		Server:      nil,
-		Registry:    nil,
-		BeforeStart: nil,
-		BeforeStop:  nil,
-		AfterStart:  nil,
-		AfterStop:   nil,
-		Context:     context.Background(),
+		Client:   client.DefaultClient,
+		Server:   server.DefaultServer,
+		Registry: registry.DefaultRegistry,
+		Context:  context.Background(),
 	}
 
 	for _, o := range opts {

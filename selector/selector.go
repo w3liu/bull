@@ -6,6 +6,8 @@ import (
 )
 
 var (
+	DefaultSelector = NewSelector()
+
 	ErrNotFound      = errors.New("not found")
 	ErrNoneAvailable = errors.New("none available")
 )

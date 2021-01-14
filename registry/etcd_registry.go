@@ -6,8 +6,8 @@ import (
 	"errors"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
-	"github.com/micro/go-micro/v2/logger"
 	hash "github.com/mitchellh/hashstructure"
+	"github.com/w3liu/bull/logger"
 	"net"
 	"path"
 	"sort"
@@ -171,17 +171,11 @@ func (e *etcdRegistry) registerNode(s *Service, node *Node, opts ...RegisterOpti
 
 	// renew the lease if it exists
 	if leaseID > 0 {
-		if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-			logger.Tracef("Renewing existing lease for %s %d", s.Name, leaseID)
-		}
 		if _, err := e.client.KeepAliveOnce(context.TODO(), leaseID); err != nil {
 			if err != rpctypes.ErrLeaseNotFound {
 				return err
 			}
-
-			if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-				logger.Tracef("Lease not found for %s %d", s.Name, leaseID)
-			}
+			logger.Infof("Lease not found for %s %d", s.Name, leaseID)
 			// lease not found do register
 			leaseNotFound = true
 		}
@@ -200,9 +194,6 @@ func (e *etcdRegistry) registerNode(s *Service, node *Node, opts ...RegisterOpti
 
 	// the service is unchanged, skip registering
 	if ok && v == h && !leaseNotFound {
-		if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-			logger.Tracef("Service %s node %s unchanged skipping registration", s.Name, node.Id)
-		}
 		return nil
 	}
 
@@ -229,10 +220,7 @@ func (e *etcdRegistry) registerNode(s *Service, node *Node, opts ...RegisterOpti
 			return err
 		}
 	}
-
-	if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-		logger.Tracef("Registering %s id %s with lease %v and leaseID %v and ttl %v", service.Name, node.Id, lgr, lgr.ID, options.TTL)
-	}
+	logger.Infof("Registering %s id %s with lease %v and leaseID %v and ttl %v", service.Name, node.Id, lgr, lgr.ID, options.TTL)
 	// create an entry for the node
 	if lgr != nil {
 		_, err = e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service), clientv3.WithLease(lgr.ID))
@@ -271,9 +259,7 @@ func (e *etcdRegistry) Deregister(s *Service, opts ...DeregisterOption) error {
 		ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 		defer cancel()
 
-		if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-			logger.Tracef("Deregistering %s id %s", s.Name, node.Id)
-		}
+		logger.Infof("Deregistering %s id %s", s.Name, node.Id)
 		_, err := e.client.Delete(ctx, nodePath(s.Name, node.Id))
 		if err != nil {
 			return err
@@ -378,6 +364,10 @@ func (e *etcdRegistry) ListServices(opts ...ListOption) ([]*Service, error) {
 	sort.Slice(services, func(i, j int) bool { return services[i].Name < services[j].Name })
 
 	return services, nil
+}
+
+func (e *etcdRegistry) Watch(opts ...WatchOption) (Watcher, error) {
+	return newEtcdWatcher(e, e.options.Timeout, opts...)
 }
 
 func (e *etcdRegistry) String() string {

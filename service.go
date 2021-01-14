@@ -1,8 +1,8 @@
 package bull
 
 import (
-	"github.com/micro/go-micro/v2/logger"
 	"github.com/w3liu/bull/client"
+	"github.com/w3liu/bull/logger"
 	"github.com/w3liu/bull/server"
 	"os"
 	"os/signal"
@@ -18,6 +18,7 @@ func newService(opts ...Option) Service {
 	options := newOptions(opts...)
 
 	service.opts = options
+
 	return service
 }
 
@@ -25,9 +26,6 @@ func (s *service) Name() string {
 	return s.opts.Server.Options().Name
 }
 
-// Init initialises options. Additionally it calls cmd.Init
-// which parses command line flags. cmd.Init is only called
-// on first Init.
 func (s *service) Init(opts ...Option) {
 	// process options
 	for _, o := range opts {

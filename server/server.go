@@ -1,5 +1,20 @@
 package server
 
+import (
+	"github.com/google/uuid"
+	"time"
+)
+
+var (
+	DefaultAddress                 = ":0"
+	DefaultName                    = "go.micro.server"
+	DefaultVersion                 = "latest"
+	DefaultId                      = uuid.New().String()
+	DefaultServer           Server = newServer()
+	DefaultRegisterInterval        = time.Second * 10
+	DefaultRegisterTTL             = time.Second * 30
+)
+
 type Server interface {
 	// Initialise options
 	Init(...Option) error
@@ -31,3 +46,7 @@ type Request interface {
 }
 
 type Option func(*Options)
+
+func NewServer(opts ...Option) Server {
+	return newServer(opts...)
+}

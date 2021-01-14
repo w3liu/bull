@@ -8,6 +8,7 @@ import (
 
 type Options struct {
 	Registry     registry.Registry
+	Metadata     map[string]string
 	Name         string
 	Address      string
 	Id           string

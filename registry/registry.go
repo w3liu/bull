@@ -2,8 +2,11 @@ package registry
 
 import "errors"
 
-// Not found error when GetService is called
-var ErrNotFound = errors.New("service not found")
+var (
+	DefaultRegistry = NewRegistry()
+	// Not found error when GetService is called
+	ErrNotFound = errors.New("service not found")
+)
 
 type Registry interface {
 	Init(...Option) error
@@ -12,6 +15,7 @@ type Registry interface {
 	Deregister(*Service, ...DeregisterOption) error
 	GetService(string, ...GetOption) ([]*Service, error)
 	ListServices(...ListOption) ([]*Service, error)
+	Watch(...WatchOption) (Watcher, error)
 	String() string
 }
 
@@ -31,6 +35,8 @@ type Node struct {
 type Option func(*Options)
 
 type RegisterOption func(*RegisterOptions)
+
+type WatchOption func(*WatchOptions)
 
 type DeregisterOption func(*DeregisterOptions)
 

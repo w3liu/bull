@@ -13,8 +13,6 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/google/uuid v1.1.2
 	github.com/jonboulle/clockwork v0.2.2 // indirect
-	github.com/micro/go-micro v1.18.0
-	github.com/micro/go-micro/v2 v2.9.1
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/patrickmn/go-cache v2.1.0+incompatible

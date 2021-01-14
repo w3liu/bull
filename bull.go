@@ -23,3 +23,7 @@ type Service interface {
 }
 
 type Option func(*Options)
+
+func NewService(opts ...Option) Service {
+	return newService(opts...)
+}
