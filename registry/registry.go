@@ -1,5 +1,10 @@
 package registry
 
+import "errors"
+
+// Not found error when GetService is called
+var ErrNotFound = errors.New("service not found")
+
 type Registry interface {
 	Init(...Option) error
 	Options() Options
