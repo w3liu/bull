@@ -37,6 +37,12 @@ type ListOptions struct {
 	Context context.Context
 }
 
+type ResolverOptions struct {
+	Scheme  string
+	Service string
+	TimeOut time.Duration
+}
+
 func Addrs(addrs ...string) Option {
 	return func(o *Options) {
 		o.Addrs = addrs
@@ -76,5 +82,24 @@ func GetContext(ctx context.Context) GetOption {
 func ListContext(ctx context.Context) ListOption {
 	return func(o *ListOptions) {
 		o.Context = ctx
+	}
+}
+
+func ResolverScheme(scheme string) ResolverOption {
+	return func(o *ResolverOptions) {
+		o.Scheme = scheme
+	}
+}
+
+func ResolverService(service string) ResolverOption {
+	return func(o *ResolverOptions) {
+		o.Service = service
+	}
+}
+
+// Watch a service
+func WatchService(name string) WatchOption {
+	return func(o *WatchOptions) {
+		o.Service = name
 	}
 }

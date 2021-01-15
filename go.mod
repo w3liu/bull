@@ -4,7 +4,7 @@ go 1.13
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.8
-	google.golang.org/grpc => google.golang.org/grpc v1.26.0
+	google.golang.org/grpc => google.golang.org/grpc v1.31.1
 )
 
 require (
@@ -21,6 +21,6 @@ require (
 	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	google.golang.org/grpc v1.34.0
+	google.golang.org/grpc v1.31.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

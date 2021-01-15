@@ -43,3 +43,5 @@ type DeregisterOption func(*DeregisterOptions)
 type GetOption func(*GetOptions)
 
 type ListOption func(*ListOptions)
+
+type ResolverOption func(*ResolverOptions)
