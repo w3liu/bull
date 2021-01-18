@@ -2,11 +2,14 @@ package bull
 
 import (
 	"context"
+	"fmt"
 	"github.com/w3liu/bull/debug/handler"
 	"github.com/w3liu/bull/debug/proto/person"
 	"github.com/w3liu/bull/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 	"testing"
+	"time"
 )
 
 func TestService(t *testing.T) {
@@ -24,13 +27,23 @@ func TestService(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	conn, err := grpc.Dial(":53505", grpc.WithInsecure())
+	r := registry.NewRegistry(registry.Addrs([]string{"192.168.10.20:2379"}...))
+	registry.RegisterResolver(r)
+
+	conn, err := grpc.Dial(fmt.Sprintf("%s:///", registry.DefaultScheme), grpc.WithInsecure(),
+		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)))
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	time.Sleep(30 * time.Second)
+
 	client := person.NewPersonClient(conn)
-	rsp, err := client.SayHello(context.TODO(), &person.SayHelloRequest{
+
+	ctx, _ := context.WithTimeout(context.TODO(), time.Second*5)
+
+	rsp, err := client.SayHello(ctx, &person.SayHelloRequest{
 		Name: "Foo",
 	})
 	if err != nil {

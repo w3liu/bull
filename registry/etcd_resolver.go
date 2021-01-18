@@ -14,7 +14,7 @@ var (
 )
 
 type etcdResolver struct {
-	registry *etcdRegistry
+	registry Registry
 	scheme   string
 	service  string
 	timeOut  time.Duration
@@ -23,7 +23,7 @@ type etcdResolver struct {
 	cc       resolver.ClientConn
 }
 
-func RegisterResolver(r *etcdRegistry, opts ...ResolverOption) {
+func RegisterResolver(r Registry, opts ...ResolverOption) {
 	options := newResolverOptions()
 
 	for _, o := range opts {
@@ -33,7 +33,6 @@ func RegisterResolver(r *etcdRegistry, opts ...ResolverOption) {
 	resolver.Register(&etcdResolver{
 		registry: r,
 		scheme:   options.Scheme,
-		service:  options.Service,
 		timeOut:  options.TimeOut,
 	})
 }
@@ -41,7 +40,6 @@ func RegisterResolver(r *etcdRegistry, opts ...ResolverOption) {
 func newResolverOptions() ResolverOptions {
 	return ResolverOptions{
 		Scheme:  DefaultScheme,
-		Service: DefaultService,
 		TimeOut: DefaultTimeOut,
 	}
 }
@@ -49,7 +47,8 @@ func newResolverOptions() ResolverOptions {
 func (r *etcdResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
 	r.target = target
 	r.cc = cc
-	watcher, err := newEtcdWatcher(r.registry, r.timeOut, WatchService(r.service))
+	er := r.registry.(*etcdRegistry)
+	watcher, err := newEtcdWatcher(er, r.timeOut)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func (r *etcdResolver) start() {
 			if result != nil && result.Service != nil {
 				nodes := result.Service.Nodes
 				for _, node := range nodes {
-					addrs = append(addrs, resolver.Address{Addr: node.Address})
+					addrs = append(addrs, resolver.Address{Addr: node.Address, ServerName: result.Service.Name})
 				}
 				r.cc.UpdateState(resolver.State{Addresses: addrs})
 			}
