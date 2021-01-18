@@ -6,6 +6,12 @@ import (
 	"sync"
 )
 
+var (
+	// DefaultMaxMsgSize define maximum message size that server can send
+	// or receive.  Default value is 4MB.
+	DefaultMaxMsgSize = 1024 * 1024 * 4
+)
+
 func newOptions(opt ...Option) Options {
 	opts := Options{
 		Name:             DefaultName,

@@ -4,7 +4,7 @@ go 1.13
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.8
-	google.golang.org/grpc => google.golang.org/grpc v1.31.1
+	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 )
 
 require (

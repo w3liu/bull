@@ -26,6 +26,8 @@ type Server interface {
 	Stop() error
 	// Server implementation
 	String() string
+	// Instance
+	Instance() interface{}
 }
 
 type Request interface {

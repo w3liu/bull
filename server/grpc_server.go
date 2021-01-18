@@ -41,11 +41,38 @@ func newServer(opts ...Option) Server {
 		rsvc:       nil,
 	}
 
+	srv.configure()
+
 	return srv
 }
 
-func (g *grpcServer) Init(...Option) error {
+func (g *grpcServer) Init(opts ...Option) error {
+	g.configure(opts...)
 	return nil
+}
+
+func (g *grpcServer) configure(opts ...Option) {
+	g.Lock()
+	defer g.Unlock()
+
+	// Don't reprocess where there's no config
+	if len(opts) == 0 && g.srv != nil {
+		return
+	}
+
+	for _, o := range opts {
+		o(&g.opts)
+	}
+
+	maxMsgSize := DefaultMaxMsgSize
+
+	gopts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(maxMsgSize),
+		grpc.MaxSendMsgSize(maxMsgSize),
+	}
+
+	g.rsvc = nil
+	g.srv = grpc.NewServer(gopts...)
 }
 
 func (g *grpcServer) Options() Options {
@@ -335,4 +362,8 @@ func (g *grpcServer) Deregister() error {
 
 	g.Unlock()
 	return nil
+}
+
+func (g *grpcServer) Instance() interface{} {
+	return g.srv
 }
