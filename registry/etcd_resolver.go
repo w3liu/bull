@@ -69,6 +69,16 @@ func (r *etcdResolver) Close() {
 }
 
 func (r *etcdResolver) start() {
+	services, err := r.registry.ListServices()
+	if err != nil {
+		logger.Error("r.registry.ListServices() error", zap.Error(err))
+		return
+	}
+	for _, service := range services {
+		if service != nil {
+			r.updateState(service.Name, service.Nodes)
+		}
+	}
 	go func() {
 		for {
 			result, err := r.watcher.Next()
@@ -76,14 +86,17 @@ func (r *etcdResolver) start() {
 				logger.Error("watcher next error", zap.Error(err))
 				return
 			}
-			var addrs = make([]resolver.Address, 0)
 			if result != nil && result.Service != nil {
-				nodes := result.Service.Nodes
-				for _, node := range nodes {
-					addrs = append(addrs, resolver.Address{Addr: node.Address, ServerName: result.Service.Name})
-				}
-				r.cc.UpdateState(resolver.State{Addresses: addrs})
+				r.updateState(result.Service.Name, result.Service.Nodes)
 			}
 		}
 	}()
+}
+
+func (r *etcdResolver) updateState(name string, nodes []*Node) {
+	var addrs = make([]resolver.Address, 0)
+	for _, node := range nodes {
+		addrs = append(addrs, resolver.Address{Addr: node.Address, ServerName: name})
+	}
+	r.cc.UpdateState(resolver.State{Addresses: addrs})
 }

@@ -37,8 +37,6 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(30 * time.Second)
-
 	client := person.NewPersonClient(conn)
 
 	ctx, _ := context.WithTimeout(context.TODO(), time.Second*5)

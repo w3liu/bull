@@ -7,7 +7,7 @@ import (
 
 var (
 	DefaultAddress                 = ":0"
-	DefaultName                    = "go.micro.server"
+	DefaultName                    = "go.bull.server"
 	DefaultVersion                 = "latest"
 	DefaultId                      = uuid.New().String()
 	DefaultServer           Server = newServer()

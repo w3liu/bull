@@ -168,6 +168,10 @@ func (g *grpcServer) Start() error {
 		ch <- nil
 	}()
 
+	g.Lock()
+	g.started = true
+	g.Unlock()
+
 	return nil
 }
 
