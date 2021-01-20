@@ -27,11 +27,11 @@ func TestService(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
+	scheme := fmt.Sprintf("%s:///%s", registry.DefaultScheme, registry.DefaultService)
 	r := registry.NewRegistry(registry.Addrs([]string{"192.168.10.20:2379"}...))
-	registry.RegisterResolver(r)
+	registry.RegisterResolver(r, registry.ResolverScheme(scheme))
 
-	conn, err := grpc.Dial(fmt.Sprintf("%s:///", registry.DefaultScheme), grpc.WithInsecure(),
-		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)))
+	conn, err := grpc.Dial(scheme, grpc.WithInsecure(), grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)))
 
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,14 @@ func TestClient(t *testing.T) {
 		Name: "Foo",
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Log("err", err)
 	}
 	t.Log(rsp)
+
+	timeout, _ := context.WithTimeout(context.Background(), time.Hour)
+	select {
+	case <-timeout.Done():
+		return
+	}
+
 }
