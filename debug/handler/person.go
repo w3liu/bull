@@ -11,7 +11,7 @@ type Person struct {
 
 func (srv *Person) SayHello(ctx context.Context, in *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
 	out := &pb.SayHelloResponse{
-		Msg: fmt.Sprintf("hello %s", in.Name),
+		Msg: fmt.Sprintf("hello %s 1", in.Name),
 	}
 	return out, nil
 }

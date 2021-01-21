@@ -16,6 +16,7 @@ type Client interface {
 	Init(...Option) error
 	Options() Options
 	String() string
+	Instance() interface{}
 }
 
 // Option used by the Client

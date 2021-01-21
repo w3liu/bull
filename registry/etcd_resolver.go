@@ -4,6 +4,7 @@ import (
 	"github.com/w3liu/bull/logger"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/resolver"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,7 @@ var (
 )
 
 type etcdResolver struct {
+	sync.Mutex
 	registry Registry
 	scheme   string
 	service  string
@@ -21,6 +23,7 @@ type etcdResolver struct {
 	watcher  Watcher
 	target   resolver.Target
 	cc       resolver.ClientConn
+	svcs     map[string]*Service
 }
 
 func RegisterResolver(r Registry, opts ...ResolverOption) {
@@ -34,6 +37,7 @@ func RegisterResolver(r Registry, opts ...ResolverOption) {
 		registry: r,
 		scheme:   options.Scheme,
 		timeOut:  options.TimeOut,
+		svcs:     make(map[string]*Service),
 	})
 }
 
@@ -77,6 +81,9 @@ func (r *etcdResolver) start() {
 	for _, service := range services {
 		if service != nil {
 			r.updateState(service.Name, service.Nodes)
+			r.Lock()
+			r.svcs[service.Name] = service
+			r.Unlock()
 		}
 	}
 	go func() {
@@ -87,7 +94,36 @@ func (r *etcdResolver) start() {
 				return
 			}
 			if result != nil && result.Service != nil {
-				r.updateState(result.Service.Name, result.Service.Nodes)
+				res := result.Service
+				var nodes []*Node
+				switch result.Action {
+				case "create", "set":
+					nodes = r.addNode(res)
+				case "update":
+					nodes = r.updateNode(res)
+				case "delete", "expire":
+					nodes = r.deleteNode(res)
+				default:
+					logger.Warn("watcher next unknown action", zap.Any("action", result.Action))
+					continue
+				}
+				r.Lock()
+				svc, ok := r.svcs[res.Name]
+				if !ok {
+					svc = res
+				}
+				if len(nodes) == 0 {
+					delete(r.svcs, res.Name)
+				} else {
+					r.svcs[res.Name] = &Service{
+						Name:     svc.Name,
+						Version:  svc.Version,
+						Metadata: svc.Metadata,
+						Nodes:    nodes,
+					}
+				}
+				r.Unlock()
+				r.updateState(svc.Name, nodes)
 			}
 		}
 	}()
@@ -99,4 +135,74 @@ func (r *etcdResolver) updateState(name string, nodes []*Node) {
 		addrs = append(addrs, resolver.Address{Addr: node.Address, ServerName: name})
 	}
 	r.cc.UpdateState(resolver.State{Addresses: addrs})
+}
+
+func (r *etcdResolver) addNode(res *Service) []*Node {
+	var nodes []*Node
+	r.Lock()
+	svc, ok := r.svcs[res.Name]
+	r.Unlock()
+	if ok {
+		nodes = svc.Nodes
+	} else {
+		nodes = make([]*Node, 0)
+	}
+	for _, add := range res.Nodes {
+		var exist bool
+		for _, cur := range nodes {
+			if cur.Id == add.Id {
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			nodes = append(nodes, add)
+		}
+	}
+	return nodes
+}
+
+func (r *etcdResolver) updateNode(res *Service) []*Node {
+	var nodes []*Node
+	r.Lock()
+	svc, ok := r.svcs[res.Name]
+	r.Unlock()
+	if ok {
+		nodes = svc.Nodes
+	} else {
+		nodes = make([]*Node, 0)
+	}
+	for _, update := range res.Nodes {
+		for i, cur := range nodes {
+			if cur.Id == update.Id {
+				nodes[i] = update
+			}
+		}
+	}
+	return nodes
+}
+
+func (r *etcdResolver) deleteNode(res *Service) []*Node {
+	var nodes []*Node
+	r.Lock()
+	svc, ok := r.svcs[res.Name]
+	r.Unlock()
+	if ok {
+		nodes = svc.Nodes
+	} else {
+		nodes = make([]*Node, 0)
+	}
+	for i, cur := range nodes {
+		var exist bool
+		for _, del := range res.Nodes {
+			if cur.Id == del.Id {
+				exist = true
+				break
+			}
+		}
+		if exist {
+			nodes = append(nodes[:i], nodes[i+1:]...)
+		}
+	}
+	return nodes
 }

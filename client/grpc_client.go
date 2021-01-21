@@ -94,3 +94,7 @@ func (g *grpcClient) Options() Options {
 func (g *grpcClient) String() string {
 	return "grpc"
 }
+
+func (g *grpcClient) Instance() interface{} {
+	return g
+}

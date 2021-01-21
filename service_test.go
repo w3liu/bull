@@ -27,11 +27,16 @@ func TestService(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	scheme := fmt.Sprintf("%s:///%s", registry.DefaultScheme, registry.DefaultService)
+	scheme := fmt.Sprintf("%s_%s", registry.DefaultScheme, registry.DefaultService)
+	target := fmt.Sprintf("%s:///", scheme)
 	r := registry.NewRegistry(registry.Addrs([]string{"192.168.10.20:2379"}...))
 	registry.RegisterResolver(r, registry.ResolverScheme(scheme))
 
-	conn, err := grpc.Dial(scheme, grpc.WithInsecure(), grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)))
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, target, grpc.WithInsecure(), grpc.WithBlock(),
+		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"loadBalancingPolicy": "%s"}`, roundrobin.Name)))
 
 	if err != nil {
 		t.Fatal(err)
@@ -39,20 +44,19 @@ func TestClient(t *testing.T) {
 
 	client := person.NewPersonClient(conn)
 
-	ctx, _ := context.WithTimeout(context.TODO(), time.Second*5)
+	ctx, cancel = context.WithTimeout(context.TODO(), time.Second*5)
+	defer cancel()
 
-	rsp, err := client.SayHello(ctx, &person.SayHelloRequest{
+	req := &person.SayHelloRequest{
 		Name: "Foo",
-	})
-	if err != nil {
-		t.Log("err", err)
-	}
-	t.Log(rsp)
-
-	timeout, _ := context.WithTimeout(context.Background(), time.Hour)
-	select {
-	case <-timeout.Done():
-		return
 	}
 
+	for i := 9; i < 100; i++ {
+		rsp, err := client.SayHello(ctx, req)
+		if err != nil {
+			t.Log("err", err)
+		}
+		fmt.Println(rsp)
+		time.Sleep(time.Second)
+	}
 }
