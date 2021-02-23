@@ -13,7 +13,7 @@ import (
 )
 
 func TestService(t *testing.T) {
-	r := registry.NewRegistry(registry.Addrs([]string{"192.168.10.20:2379"}...))
+	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
 	service := NewService(
 		Registry(r),
 	)
@@ -27,9 +27,9 @@ func TestService(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	scheme := fmt.Sprintf("%s_%s", registry.DefaultScheme, registry.DefaultService)
+	scheme := fmt.Sprintf("%s", registry.DefaultScheme)
 	target := fmt.Sprintf("%s:///", scheme)
-	r := registry.NewRegistry(registry.Addrs([]string{"192.168.10.20:2379"}...))
+	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
 	registry.RegisterResolver(r, registry.ResolverScheme(scheme))
 
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
@@ -44,14 +44,12 @@ func TestClient(t *testing.T) {
 
 	client := person.NewPersonClient(conn)
 
-	ctx, cancel = context.WithTimeout(context.TODO(), time.Second*5)
-	defer cancel()
-
 	req := &person.SayHelloRequest{
 		Name: "Foo",
 	}
 
-	for i := 9; i < 100; i++ {
+	for i := 0; i < 100; i++ {
+		ctx, _ = context.WithTimeout(context.TODO(), time.Second*5)
 		rsp, err := client.SayHello(ctx, req)
 		if err != nil {
 			t.Log("err", err)
