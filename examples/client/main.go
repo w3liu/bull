@@ -11,11 +11,16 @@ import (
 )
 
 func main() {
-	r := registry.NewRegistry(registry.Addrs([]string{"192.168.10.20:2379"}...))
-	registry.RegisterResolver(r)
+	scheme := fmt.Sprintf("%s", registry.DefaultScheme)
+	target := fmt.Sprintf("%s:///", scheme)
+	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
+	registry.RegisterResolver(r, registry.ResolverScheme(scheme))
 
-	conn, err := grpc.Dial(fmt.Sprintf("%s:///", registry.DefaultScheme), grpc.WithInsecure(),
-		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)))
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, target, grpc.WithInsecure(), grpc.WithBlock(),
+		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"loadBalancingPolicy": "%s"}`, roundrobin.Name)))
 
 	if err != nil {
 		panic(err)

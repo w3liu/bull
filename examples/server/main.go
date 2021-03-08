@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	r := registry.NewRegistry(registry.Addrs([]string{"192.168.10.20:2379"}...))
+	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
 	service := bull.NewService(
 		bull.Registry(r),
 	)

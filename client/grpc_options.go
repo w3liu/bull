@@ -7,52 +7,10 @@ import (
 	"google.golang.org/grpc/encoding"
 )
 
-var (
-	// DefaultPoolMaxStreams maximum streams on a connectioin
-	// (20)
-	DefaultPoolMaxStreams = 20
-
-	// DefaultPoolMaxIdle maximum idle conns of a pool
-	// (50)
-	DefaultPoolMaxIdle = 50
-
-	// DefaultMaxRecvMsgSize maximum message that client can receive
-	// (4 MB).
-	DefaultMaxRecvMsgSize = 1024 * 1024 * 4
-
-	// DefaultMaxSendMsgSize maximum message that client can send
-	// (4 MB).
-	DefaultMaxSendMsgSize = 1024 * 1024 * 4
-)
-
-type poolMaxStreams struct{}
-type poolMaxIdle struct{}
 type codecsKey struct{}
 type tlsAuth struct{}
-type maxRecvMsgSizeKey struct{}
-type maxSendMsgSizeKey struct{}
 type grpcDialOptions struct{}
 type grpcCallOptions struct{}
-
-// maximum streams on a connectioin
-func PoolMaxStreams(n int) Option {
-	return func(o *Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, poolMaxStreams{}, n)
-	}
-}
-
-// maximum idle conns of a pool
-func PoolMaxIdle(d int) Option {
-	return func(o *Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, poolMaxIdle{}, d)
-	}
-}
 
 // gRPC Codec to be used to encode/decode requests for a given content type
 func Codec(contentType string, c encoding.Codec) Option {
@@ -76,30 +34,6 @@ func AuthTLS(t *tls.Config) Option {
 			o.Context = context.Background()
 		}
 		o.Context = context.WithValue(o.Context, tlsAuth{}, t)
-	}
-}
-
-//
-// MaxRecvMsgSize set the maximum size of message that client can receive.
-//
-func MaxRecvMsgSize(s int) Option {
-	return func(o *Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, maxRecvMsgSizeKey{}, s)
-	}
-}
-
-//
-// MaxSendMsgSize set the maximum size of message that client can send.
-//
-func MaxSendMsgSize(s int) Option {
-	return func(o *Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, maxSendMsgSizeKey{}, s)
 	}
 }
 
