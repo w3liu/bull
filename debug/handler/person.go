@@ -7,11 +7,12 @@ import (
 )
 
 type Person struct {
+	Name string
 }
 
 func (srv *Person) SayHello(ctx context.Context, in *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
 	out := &pb.SayHelloResponse{
-		Msg: fmt.Sprintf("hello %s 1", in.Name),
+		Msg: fmt.Sprintf("%s say hello to %s", srv.Name, in.Name),
 	}
 	return out, nil
 }

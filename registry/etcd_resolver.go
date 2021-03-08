@@ -35,6 +35,7 @@ func RegisterResolver(r Registry, opts ...ResolverOption) {
 
 	resolver.Register(&etcdResolver{
 		registry: r,
+		service:  options.Service,
 		scheme:   options.Scheme,
 		timeOut:  options.TimeOut,
 		svcs:     make(map[string]*Service),
@@ -79,7 +80,7 @@ func (r *etcdResolver) start() {
 		return
 	}
 	for _, service := range services {
-		if service != nil {
+		if service != nil && r.validService(service.Name) {
 			r.updateState(service.Name, service.Nodes)
 			r.Lock()
 			r.svcs[service.Name] = service
@@ -93,7 +94,7 @@ func (r *etcdResolver) start() {
 				logger.Error("watcher next error", zap.Error(err))
 				return
 			}
-			if result != nil && result.Service != nil {
+			if result != nil && result.Service != nil && r.validService(result.Service.Name) {
 				res := result.Service
 				var nodes []*Node
 				switch result.Action {
@@ -205,4 +206,11 @@ func (r *etcdResolver) deleteNode(res *Service) []*Node {
 		}
 	}
 	return nodes
+}
+
+func (r *etcdResolver) validService(name string) bool {
+	if r.service == "" {
+		return true
+	}
+	return name == r.service
 }
