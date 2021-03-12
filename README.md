@@ -15,7 +15,7 @@ Bull一款基于GO语言的极简微服务框架。
 计划实现：API Gateway、配置中心、服务监控等功能。
 
 ## 整体架构
-[!qr](./docs/images/bull.png)
+![avatar](./docs/images/bull.png)
 
 ## 使用说明
 ### 安装etcd
