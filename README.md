@@ -6,7 +6,7 @@
 * 由于2021年是牛年所以就将框架的名称命名为`bull`即公牛的意思。
 
 ## 简介
-Bull一款基于GO语言的极简微服务框架。
+Bull是一款基于GO语言的极简微服务框架。
 
 使用GRPC作为RPC协议，使用ETCD作为注册中心。
 
@@ -15,7 +15,7 @@ Bull一款基于GO语言的极简微服务框架。
 计划实现：API Gateway、配置中心、服务监控等功能。
 
 ## 整体架构
-[!qr](./docs/images/bull.png)
+![avatar](./docs/images/bull.png)
 
 ## 使用说明
 ### 安装etcd
