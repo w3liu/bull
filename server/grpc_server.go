@@ -46,11 +46,6 @@ func newServer(opts ...Option) Server {
 	return srv
 }
 
-func (g *grpcServer) Init(opts ...Option) error {
-	g.configure(opts...)
-	return nil
-}
-
 func (g *grpcServer) configure(opts ...Option) {
 	g.Lock()
 	defer g.Unlock()
@@ -73,6 +68,11 @@ func (g *grpcServer) configure(opts ...Option) {
 
 	g.rsvc = nil
 	g.srv = grpc.NewServer(gopts...)
+}
+
+func (g *grpcServer) Init(opts ...Option) error {
+	g.configure(opts...)
+	return nil
 }
 
 func (g *grpcServer) Options() Options {
@@ -200,6 +200,10 @@ func (g *grpcServer) Stop() error {
 
 func (g *grpcServer) String() string {
 	return "grpc"
+}
+
+func (g *grpcServer) Instance() interface{} {
+	return g.srv
 }
 
 func (g *grpcServer) Register() error {
@@ -366,8 +370,4 @@ func (g *grpcServer) Deregister() error {
 
 	g.Unlock()
 	return nil
-}
-
-func (g *grpcServer) Instance() interface{} {
-	return g.srv
 }

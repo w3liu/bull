@@ -3,12 +3,12 @@ package bull
 import (
 	"context"
 	"fmt"
-	"github.com/w3liu/bull/debug/handler"
-	"github.com/w3liu/bull/debug/proto/person"
+	"github.com/w3liu/bull/client"
+	"github.com/w3liu/bull/examples/handler"
+	pb "github.com/w3liu/bull/examples/proto"
 	"github.com/w3liu/bull/registry"
 	"github.com/w3liu/bull/server"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/balancer/roundrobin"
 	"testing"
 	"time"
 )
@@ -27,6 +27,13 @@ func TestService2(t *testing.T) {
 	}
 }
 
+func TestService3(t *testing.T) {
+	err := runService("Foo3")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func runService(name string) error {
 	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
 	service := NewService(
@@ -34,37 +41,34 @@ func runService(name string) error {
 		Server(server.NewServer(server.Name(fmt.Sprintf("%s_%d", "hello.svc", 0)))),
 	)
 	serv := service.Server()
-	grpcServer := serv.Instance().(*grpc.Server)
-	person.RegisterPersonServer(grpcServer, &handler.Person{Name: name})
+	grpcServer, ok := serv.Instance().(*grpc.Server)
+	if !ok {
+		panic("not grpc server")
+	}
+	pb.RegisterPersonServer(grpcServer, &handler.Person{Name: name})
 	err := service.Run()
 	return err
 }
 
 func TestClient(t *testing.T) {
-	scheme := fmt.Sprintf("%s", registry.DefaultScheme)
-	target := fmt.Sprintf("%s:///", scheme)
 	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
-	registry.RegisterResolver(r, registry.ResolverScheme(scheme), registry.ResolverService(fmt.Sprintf("%s_%d", "hello.svc", 0)))
+	cli := client.NewClient(
+		client.Registry(r),
+		client.Service("hello.svc"))
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
-	defer cancel()
-
-	conn, err := grpc.DialContext(ctx, target, grpc.WithInsecure(), grpc.WithBlock(),
-		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"loadBalancingPolicy": "%s"}`, roundrobin.Name)))
-
-	if err != nil {
-		t.Fatal(err)
+	conn, ok := cli.Instance().(*grpc.ClientConn)
+	if !ok {
+		panic("not grpc client conn instance")
 	}
+	personClient := pb.NewPersonClient(conn)
 
-	client := person.NewPersonClient(conn)
-
-	req := &person.SayHelloRequest{
+	req := &pb.SayHelloRequest{
 		Name: "Bar",
 	}
 
 	for i := 0; i < 100; i++ {
-		ctx, _ = context.WithTimeout(context.TODO(), time.Second*5)
-		rsp, err := client.SayHello(ctx, req)
+		ctx, _ := context.WithTimeout(context.TODO(), time.Second*5)
+		rsp, err := personClient.SayHello(ctx, req)
 		if err != nil {
 			t.Log("err", err)
 		}

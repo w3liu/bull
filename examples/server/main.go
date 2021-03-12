@@ -1,9 +1,8 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"github.com/w3liu/bull"
+	"github.com/w3liu/bull/examples/handler"
 	pb "github.com/w3liu/bull/examples/proto"
 	"github.com/w3liu/bull/registry"
 	"google.golang.org/grpc"
@@ -15,20 +14,13 @@ func main() {
 		bull.Registry(r),
 	)
 	server := service.Server()
-	grpcServer := server.Instance().(*grpc.Server)
-	pb.RegisterPersonServer(grpcServer, &person{})
+	grpcServer, ok := server.Instance().(*grpc.Server)
+	if !ok {
+		panic("not grpc server")
+	}
+	pb.RegisterPersonServer(grpcServer, &handler.Person{Name: "Foo"})
 	err := service.Run()
 	if err != nil {
 		panic(err)
 	}
-}
-
-type person struct {
-}
-
-func (srv *person) SayHello(ctx context.Context, in *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
-	out := &pb.SayHelloResponse{
-		Msg: fmt.Sprintf("hello %s 2", in.Name),
-	}
-	return out, nil
 }

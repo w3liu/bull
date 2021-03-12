@@ -10,7 +10,6 @@ import (
 
 var (
 	DefaultScheme  = "etcd"
-	DefaultService = "go.bull.server"
 	DefaultTimeOut = time.Second * 5
 )
 
