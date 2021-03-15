@@ -1,190 +1,373 @@
 package server
 
 import (
-	"context"
-	"errors"
-	"github.com/micro/go-micro/v2/logger"
-	"reflect"
+	"github.com/w3liu/bull/infra/addr"
+	"github.com/w3liu/bull/infra/backoff"
+	mnet "github.com/w3liu/bull/infra/net"
+	"github.com/w3liu/bull/logger"
+	meta "github.com/w3liu/bull/metadata"
+	"github.com/w3liu/bull/registry"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"net"
+	"strings"
 	"sync"
-	"unicode"
-	"unicode/utf8"
+	"time"
 )
 
-var (
-	// Precompute the reflect type for error. Can't use error directly
-	// because Typeof takes an empty interface value. This is annoying.
-	typeOfError = reflect.TypeOf((*error)(nil)).Elem()
-)
+type grpcServer struct {
+	srv  *grpc.Server
+	exit chan chan error
+	wg   *sync.WaitGroup
 
-type methodType struct {
-	method      reflect.Method
-	ArgType     reflect.Type
-	ReplyType   reflect.Type
-	ContextType reflect.Type
-	stream      bool
+	sync.RWMutex
+	opts       Options
+	started    bool
+	registered bool
+	rsvc       *registry.Service
 }
 
-type service struct {
-	name   string                 // name of service
-	rcvr   reflect.Value          // receiver of methods for the service
-	typ    reflect.Type           // type of the receiver
-	method map[string]*methodType // registered methods
+func newServer(opts ...Option) Server {
+	options := newOptions(opts...)
+
+	srv := &grpcServer{
+		srv:        nil,
+		exit:       make(chan chan error),
+		wg:         wait(options.Context),
+		RWMutex:    sync.RWMutex{},
+		opts:       options,
+		started:    false,
+		registered: false,
+		rsvc:       nil,
+	}
+
+	srv.configure()
+
+	return srv
 }
 
-// server represents an RPC Server.
-type rServer struct {
-	mu         sync.Mutex // protects the serviceMap
-	serviceMap map[string]*service
+func (g *grpcServer) configure(opts ...Option) {
+	g.Lock()
+	defer g.Unlock()
+
+	// Don't reprocess where there's no config
+	if len(opts) == 0 && g.srv != nil {
+		return
+	}
+
+	for _, o := range opts {
+		o(&g.opts)
+	}
+
+	maxMsgSize := DefaultMaxMsgSize
+
+	gopts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(maxMsgSize),
+		grpc.MaxSendMsgSize(maxMsgSize),
+	}
+
+	g.rsvc = nil
+	g.srv = grpc.NewServer(gopts...)
 }
 
-// Is this an exported - upper case - name?
-func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
-}
-
-// Is this type exported or a builtin?
-func isExportedOrBuiltinType(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	// PkgPath will be non-empty even for an exported type,
-	// so we need to check the type name as well.
-	return isExported(t.Name()) || t.PkgPath() == ""
-}
-
-// prepareEndpoint() returns a methodType for the provided method or nil
-// in case if the method was unsuitable.
-func prepareEndpoint(method reflect.Method) *methodType {
-	mtype := method.Type
-	mname := method.Name
-	var replyType, argType, contextType reflect.Type
-	var stream bool
-
-	// Endpoint() must be exported.
-	if method.PkgPath != "" {
-		return nil
-	}
-
-	switch mtype.NumIn() {
-	case 3:
-		// assuming streaming
-		argType = mtype.In(2)
-		contextType = mtype.In(1)
-		stream = true
-	case 4:
-		// method that takes a context
-		argType = mtype.In(2)
-		replyType = mtype.In(3)
-		contextType = mtype.In(1)
-	default:
-		if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-			logger.Errorf("method %v of %v has wrong number of ins: %v", mname, mtype, mtype.NumIn())
-		}
-		return nil
-	}
-
-	if stream {
-		// check stream type
-		streamType := reflect.TypeOf((*Stream)(nil)).Elem()
-		if !argType.Implements(streamType) {
-			if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-				logger.Errorf("%v argument does not implement Streamer interface: %v", mname, argType)
-			}
-			return nil
-		}
-	} else {
-		// if not stream check the replyType
-
-		// First arg need not be a pointer.
-		if !isExportedOrBuiltinType(argType) {
-			if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-				logger.Errorf("%v argument type not exported: %v", mname, argType)
-			}
-			return nil
-		}
-
-		if replyType.Kind() != reflect.Ptr {
-			if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-				logger.Errorf("method %v reply type not a pointer: %v", mname, replyType)
-			}
-			return nil
-		}
-
-		// Reply type must be exported.
-		if !isExportedOrBuiltinType(replyType) {
-			if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-				logger.Errorf("method %v reply type not exported: %v", mname, replyType)
-			}
-			return nil
-		}
-	}
-
-	// Endpoint() needs one out.
-	if mtype.NumOut() != 1 {
-		if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-			logger.Errorf("method %v has wrong number of outs: %v", mname, mtype.NumOut())
-		}
-		return nil
-	}
-	// The return type of the method must be error.
-	if returnType := mtype.Out(0); returnType != typeOfError {
-		if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-			logger.Errorf("method %v returns %v not error", mname, returnType.String())
-		}
-		return nil
-	}
-	return &methodType{method: method, ArgType: argType, ReplyType: replyType, ContextType: contextType, stream: stream}
-}
-
-func (server *rServer) register(rcvr interface{}) error {
-	server.mu.Lock()
-	defer server.mu.Unlock()
-	if server.serviceMap == nil {
-		server.serviceMap = make(map[string]*service)
-	}
-	s := new(service)
-	s.typ = reflect.TypeOf(rcvr)
-	s.rcvr = reflect.ValueOf(rcvr)
-	sname := reflect.Indirect(s.rcvr).Type().Name()
-	if sname == "" {
-		logger.Fatalf("rpc: no service name for type %v", s.typ.String())
-	}
-	if !isExported(sname) {
-		s := "rpc Register: type " + sname + " is not exported"
-		if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-			logger.Error(s)
-		}
-		return errors.New(s)
-	}
-	if _, present := server.serviceMap[sname]; present {
-		return errors.New("rpc: service already defined: " + sname)
-	}
-	s.name = sname
-	s.method = make(map[string]*methodType)
-
-	// Install the methods
-	for m := 0; m < s.typ.NumMethod(); m++ {
-		method := s.typ.Method(m)
-		if mt := prepareEndpoint(method); mt != nil {
-			s.method[method.Name] = mt
-		}
-	}
-
-	if len(s.method) == 0 {
-		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
-		if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-			logger.Error(s)
-		}
-		return errors.New(s)
-	}
-	server.serviceMap[s.name] = s
+func (g *grpcServer) Init(opts ...Option) error {
+	g.configure(opts...)
 	return nil
 }
 
-func (m *methodType) prepareContext(ctx context.Context) reflect.Value {
-	if contextv := reflect.ValueOf(ctx); contextv.IsValid() {
-		return contextv
+func (g *grpcServer) Options() Options {
+
+	g.RLock()
+	opts := g.opts
+	g.RUnlock()
+
+	return opts
+}
+
+func (g *grpcServer) Start() error {
+	g.RLock()
+	if g.started {
+		g.RUnlock()
+		return nil
 	}
-	return reflect.Zero(m.ContextType)
+	g.RUnlock()
+	config := g.Options()
+
+	ts, err := net.Listen("tcp", config.Address)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Server [grpc] Listening on %s", ts.Addr().String())
+
+	g.Lock()
+	g.opts.Address = ts.Addr().String()
+	g.Unlock()
+
+	if err := g.Register(); err != nil {
+		return err
+	}
+
+	go func() {
+		if err := g.srv.Serve(ts); err != nil {
+			logger.Errorf("gRPC Server start error: %v", err)
+		}
+	}()
+
+	go func() {
+		t := new(time.Ticker)
+
+		// only process if it exists
+		if g.opts.RegisterInterval > time.Duration(0) {
+			// new ticker
+			t = time.NewTicker(g.opts.RegisterInterval)
+		}
+
+		// return error chan
+		var ch chan error
+
+	Loop:
+		for {
+			select {
+			// register self on interval
+			case <-t.C:
+				if err := g.Register(); err != nil {
+					logger.Error("Server register error: ", zap.Error(err))
+				}
+			// wait for exit
+			case ch = <-g.exit:
+				break Loop
+			}
+		}
+
+		// deregister self
+		if err := g.Deregister(); err != nil {
+			logger.Error("Server deregister error: ", zap.Error(err))
+		}
+
+		// wait for waitgroup
+		if g.wg != nil {
+			g.wg.Wait()
+		}
+
+		// stop the grpc server
+		exit := make(chan bool)
+
+		go func() {
+			g.srv.GracefulStop()
+			close(exit)
+		}()
+
+		select {
+		case <-exit:
+		case <-time.After(time.Second):
+			g.srv.Stop()
+		}
+
+		// close transport
+		ch <- nil
+	}()
+
+	g.Lock()
+	g.started = true
+	g.Unlock()
+
+	return nil
+}
+
+func (g *grpcServer) Stop() error {
+	g.RLock()
+	if !g.started {
+		g.RUnlock()
+		return nil
+	}
+	g.RUnlock()
+
+	ch := make(chan error)
+	g.exit <- ch
+
+	var err error
+	select {
+	case err = <-ch:
+		g.Lock()
+		g.rsvc = nil
+		g.started = false
+		g.Unlock()
+	}
+
+	return err
+}
+
+func (g *grpcServer) String() string {
+	return "grpc"
+}
+
+func (g *grpcServer) Instance() interface{} {
+	return g.srv
+}
+
+func (g *grpcServer) Register() error {
+	g.RLock()
+	rsvc := g.rsvc
+	config := g.opts
+	g.RUnlock()
+
+	regFunc := func(service *registry.Service) error {
+		var regErr error
+
+		for i := 0; i < 3; i++ {
+			// set the ttl
+			rOpts := []registry.RegisterOption{registry.RegisterTTL(config.RegisterTTL)}
+			// attempt to register
+			if err := config.Registry.Register(service, rOpts...); err != nil {
+				// set the error
+				regErr = err
+				// backoff then retry
+				time.Sleep(backoff.Do(i + 1))
+				continue
+			}
+			// success so nil error
+			regErr = nil
+			break
+		}
+
+		return regErr
+	}
+
+	// if service already filled, reuse it and return early
+	if rsvc != nil {
+		if err := regFunc(rsvc); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	var err error
+	var address, host, port string
+	var cacheService bool
+
+	address = config.Address
+
+	if cnt := strings.Count(address, ":"); cnt >= 1 {
+		// ipv6 address in format [host]:port or ipv4 host:port
+		host, port, err = net.SplitHostPort(address)
+		if err != nil {
+			return err
+		}
+	} else {
+		host = address
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		cacheService = true
+	}
+
+	exAddr, err := addr.Extract(host)
+	if err != nil {
+		return err
+	}
+
+	md := meta.Copy(config.Metadata)
+
+	node := &registry.Node{
+		Id:       config.Name + "-" + config.Id,
+		Address:  mnet.HostPort(exAddr, port),
+		Metadata: md,
+	}
+
+	node.Metadata["registry"] = config.Registry.String()
+	node.Metadata["server"] = g.String()
+	node.Metadata["transport"] = g.String()
+	node.Metadata["protocol"] = "grpc"
+
+	service := &registry.Service{
+		Name:    config.Name,
+		Version: config.Version,
+		Nodes:   []*registry.Node{node},
+	}
+
+	g.RLock()
+	registered := g.registered
+	g.RUnlock()
+
+	if !registered {
+		logger.Infof("Registry [%s] Registering node: %s", config.Registry.String(), node.Id)
+	}
+
+	// register the service
+	if err := regFunc(service); err != nil {
+		return err
+	}
+
+	// already registered? don't need to register subscribers
+	if registered {
+		return nil
+	}
+
+	g.Lock()
+	defer g.Unlock()
+
+	g.registered = true
+	if cacheService {
+		g.rsvc = service
+	}
+
+	return nil
+}
+
+func (g *grpcServer) Deregister() error {
+	var err error
+	var address, host, port string
+
+	g.RLock()
+	config := g.opts
+	g.RUnlock()
+
+	// check the advertise address first
+	// if it exists then use it, otherwise
+	// use the address
+	address = config.Address
+
+	if cnt := strings.Count(address, ":"); cnt >= 1 {
+		// ipv6 address in format [host]:port or ipv4 host:port
+		host, port, err = net.SplitHostPort(address)
+		if err != nil {
+			return err
+		}
+	} else {
+		host = address
+	}
+
+	exAddr, err := addr.Extract(host)
+	if err != nil {
+		return err
+	}
+
+	node := &registry.Node{
+		Id:      config.Name + "-" + config.Id,
+		Address: mnet.HostPort(exAddr, port),
+	}
+
+	service := &registry.Service{
+		Name:    config.Name,
+		Version: config.Version,
+		Nodes:   []*registry.Node{node},
+	}
+	logger.Infof("Deregistering node: %s", node.Id)
+	if err := config.Registry.Deregister(service); err != nil {
+		return err
+	}
+
+	g.Lock()
+	g.rsvc = nil
+
+	if !g.registered {
+		g.Unlock()
+		return nil
+	}
+
+	g.registered = false
+
+	g.Unlock()
+	return nil
 }

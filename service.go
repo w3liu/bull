@@ -2,11 +2,11 @@ package bull
 
 import (
 	"github.com/w3liu/bull/client"
-	signalutil "github.com/w3liu/bull/infra/signal"
 	"github.com/w3liu/bull/logger"
 	"github.com/w3liu/bull/server"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 type service struct {
@@ -17,7 +17,6 @@ func newService(opts ...Option) Service {
 	service := new(service)
 	options := newOptions(opts...)
 
-	// set opts
 	service.opts = options
 
 	return service
@@ -27,9 +26,6 @@ func (s *service) Name() string {
 	return s.opts.Server.Options().Name
 }
 
-// Init initialises options. Additionally it calls cmd.Init
-// which parses command line flags. cmd.Init is only called
-// on first Init.
 func (s *service) Init(opts ...Option) {
 	// process options
 	for _, o := range opts {
@@ -50,7 +46,7 @@ func (s *service) Server() server.Server {
 }
 
 func (s *service) String() string {
-	return "bull"
+	return "micro"
 }
 
 func (s *service) Start() error {
@@ -96,6 +92,7 @@ func (s *service) Stop() error {
 }
 
 func (s *service) Run() error {
+
 	logger.Infof("Starting [service] %s", s.Name())
 
 	if err := s.Start(); err != nil {
@@ -103,9 +100,7 @@ func (s *service) Run() error {
 	}
 
 	ch := make(chan os.Signal, 1)
-	if s.opts.Signal {
-		signal.Notify(ch, signalutil.Shutdown()...)
-	}
+	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL)
 
 	select {
 	// wait on kill signal

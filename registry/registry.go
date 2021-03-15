@@ -4,7 +4,8 @@ import "errors"
 
 var (
 	DefaultRegistry = NewRegistry()
-	ErrNotFound     = errors.New("service not found")
+	// Not found error when GetService is called
+	ErrNotFound = errors.New("service not found")
 )
 
 type Registry interface {
@@ -19,30 +20,16 @@ type Registry interface {
 }
 
 type Service struct {
-	Name      string            `json:"name"`
-	Version   string            `json:"version"`
-	Metadata  map[string]string `json:"metadata"`
-	Endpoints []*Endpoint       `json:"endpoints"`
-	Nodes     []*Node           `json:"nodes"`
+	Name     string            `json:"name"`
+	Version  string            `json:"version"`
+	Metadata map[string]string `json:"metadata"`
+	Nodes    []*Node           `json:"nodes"`
 }
 
 type Node struct {
 	Id       string            `json:"id"`
 	Address  string            `json:"address"`
 	Metadata map[string]string `json:"metadata"`
-}
-
-type Endpoint struct {
-	Name     string            `json:"name"`
-	Request  *Value            `json:"request"`
-	Response *Value            `json:"response"`
-	Metadata map[string]string `json:"metadata"`
-}
-
-type Value struct {
-	Name   string   `json:"name"`
-	Type   string   `json:"type"`
-	Values []*Value `json:"values"`
 }
 
 type Option func(*Options)
@@ -56,3 +43,5 @@ type DeregisterOption func(*DeregisterOptions)
 type GetOption func(*GetOptions)
 
 type ListOption func(*ListOptions)
+
+type ResolverOption func(*ResolverOptions)

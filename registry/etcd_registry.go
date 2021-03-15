@@ -2,20 +2,18 @@ package registry
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
-	"go.uber.org/zap"
+	hash "github.com/mitchellh/hashstructure"
+	"github.com/w3liu/bull/logger"
 	"net"
 	"path"
 	"sort"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/coreos/etcd/clientv3"
-	hash "github.com/mitchellh/hashstructure"
 )
 
 var (
@@ -54,26 +52,11 @@ func configure(e *etcdRegistry, opts ...Option) error {
 		e.options.Timeout = 5 * time.Second
 	}
 
-	if e.options.Secure || e.options.TLSConfig != nil {
-		tlsConfig := e.options.TLSConfig
-		if tlsConfig == nil {
-			tlsConfig = &tls.Config{
-				InsecureSkipVerify: true,
-			}
-		}
-
-		config.TLS = tlsConfig
-	}
-
 	if e.options.Context != nil {
 		u, ok := e.options.Context.Value(authKey{}).(*authCreds)
 		if ok {
 			config.Username = u.Username
 			config.Password = u.Password
-		}
-		cfg, ok := e.options.Context.Value(logConfigKey{}).(*zap.Config)
-		if ok && cfg != nil {
-			config.LogConfig = cfg
 		}
 	}
 
@@ -188,17 +171,11 @@ func (e *etcdRegistry) registerNode(s *Service, node *Node, opts ...RegisterOpti
 
 	// renew the lease if it exists
 	if leaseID > 0 {
-		//if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-		//	logger.Tracef("Renewing existing lease for %s %d", s.Name, leaseID)
-		//}
 		if _, err := e.client.KeepAliveOnce(context.TODO(), leaseID); err != nil {
 			if err != rpctypes.ErrLeaseNotFound {
 				return err
 			}
-
-			//if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-			//	logger.Tracef("Lease not found for %s %d", s.Name, leaseID)
-			//}
+			logger.Infof("Lease not found for %s %d", s.Name, leaseID)
 			// lease not found do register
 			leaseNotFound = true
 		}
@@ -217,18 +194,14 @@ func (e *etcdRegistry) registerNode(s *Service, node *Node, opts ...RegisterOpti
 
 	// the service is unchanged, skip registering
 	if ok && v == h && !leaseNotFound {
-		//if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-		//	logger.Tracef("Service %s node %s unchanged skipping registration", s.Name, node.Id)
-		//}
 		return nil
 	}
 
 	service := &Service{
-		Name:      s.Name,
-		Version:   s.Version,
-		Metadata:  s.Metadata,
-		Endpoints: s.Endpoints,
-		Nodes:     []*Node{node},
+		Name:     s.Name,
+		Version:  s.Version,
+		Metadata: s.Metadata,
+		Nodes:    []*Node{node},
 	}
 
 	var options RegisterOptions
@@ -247,10 +220,7 @@ func (e *etcdRegistry) registerNode(s *Service, node *Node, opts ...RegisterOpti
 			return err
 		}
 	}
-
-	//if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-	//	logger.Tracef("Registering %s id %s with lease %v and leaseID %v and ttl %v", service.Name, node.Id, lgr, lgr.ID, options.TTL)
-	//}
+	logger.Infof("Registering %s id %s with lease %v and leaseID %v and ttl %v", service.Name, node.Id, lgr, lgr.ID, options.TTL)
 	// create an entry for the node
 	if lgr != nil {
 		_, err = e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service), clientv3.WithLease(lgr.ID))
@@ -289,9 +259,7 @@ func (e *etcdRegistry) Deregister(s *Service, opts ...DeregisterOption) error {
 		ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 		defer cancel()
 
-		//if logger.V(logger.TraceLevel, logger.DefaultLogger) {
-		//	logger.Tracef("Deregistering %s id %s", s.Name, node.Id)
-		//}
+		logger.Infof("Deregistering %s id %s", s.Name, node.Id)
 		_, err := e.client.Delete(ctx, nodePath(s.Name, node.Id))
 		if err != nil {
 			return err
@@ -339,10 +307,9 @@ func (e *etcdRegistry) GetService(name string, opts ...GetOption) ([]*Service, e
 			s, ok := serviceMap[sn.Version]
 			if !ok {
 				s = &Service{
-					Name:      sn.Name,
-					Version:   sn.Version,
-					Metadata:  sn.Metadata,
-					Endpoints: sn.Endpoints,
+					Name:     sn.Name,
+					Version:  sn.Version,
+					Metadata: sn.Metadata,
 				}
 				serviceMap[s.Version] = s
 			}

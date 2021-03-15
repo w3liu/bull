@@ -2,88 +2,23 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
-	"github.com/w3liu/bull/codec"
 	"github.com/w3liu/bull/registry"
-	"github.com/w3liu/bull/trace"
-	"github.com/w3liu/bull/transport"
-	"sync"
 	"time"
 )
 
 type Options struct {
-	Codecs       map[string]codec.NewCodec
 	Registry     registry.Registry
-	Tracer       trace.Tracer
-	Transport    transport.Transport
 	Metadata     map[string]string
 	Name         string
 	Address      string
-	Advertise    string
 	Id           string
 	Version      string
 	HdlrWrappers []HandlerWrapper
-	SubWrappers  []SubscriberWrapper
 
-	// RegisterCheck runs a check function before registering the service
-	RegisterCheck func(context.Context) error
-	// The register expiry time
-	RegisterTTL time.Duration
-	// The interval on which to register
+	RegisterTTL      time.Duration
 	RegisterInterval time.Duration
 
-	// The router for requests
-	Router Router
-
-	// TLSConfig specifies tls.Config for secure serving
-	TLSConfig *tls.Config
-
-	// Other options for implementations of the interface
-	// can be stored in a context
 	Context context.Context
-}
-
-func newOptions(opt ...Option) Options {
-	opts := Options{
-		Codecs:           make(map[string]codec.NewCodec),
-		Metadata:         map[string]string{},
-		RegisterInterval: DefaultRegisterInterval,
-		RegisterTTL:      DefaultRegisterTTL,
-	}
-
-	for _, o := range opt {
-		o(&opts)
-	}
-
-	if opts.Registry == nil {
-		opts.Registry = registry.DefaultRegistry
-	}
-
-	if opts.Transport == nil {
-		opts.Transport = transport.DefaultTransport
-	}
-
-	if opts.RegisterCheck == nil {
-		opts.RegisterCheck = DefaultRegisterCheck
-	}
-
-	if len(opts.Address) == 0 {
-		opts.Address = DefaultAddress
-	}
-
-	if len(opts.Name) == 0 {
-		opts.Name = DefaultName
-	}
-
-	if len(opts.Id) == 0 {
-		opts.Id = DefaultId
-	}
-
-	if len(opts.Version) == 0 {
-		opts.Version = DefaultVersion
-	}
-
-	return opts
 }
 
 // Server name
@@ -114,20 +49,6 @@ func Address(a string) Option {
 	}
 }
 
-// The address to advertise for discovery - host:port
-func Advertise(a string) Option {
-	return func(o *Options) {
-		o.Advertise = a
-	}
-}
-
-// Codec to use to encode/decode requests for a given content type
-func Codec(contentType string, c codec.NewCodec) Option {
-	return func(o *Options) {
-		o.Codecs[contentType] = c
-	}
-}
-
 // Context specifies a context for the service.
 // Can be used to signal shutdown of the service
 // Can be used for extra option values.
@@ -141,34 +62,6 @@ func Context(ctx context.Context) Option {
 func Registry(r registry.Registry) Option {
 	return func(o *Options) {
 		o.Registry = r
-	}
-}
-
-// Tracer mechanism for distributed tracking
-func Tracer(t trace.Tracer) Option {
-	return func(o *Options) {
-		o.Tracer = t
-	}
-}
-
-// Transport mechanism for communication e.g http, rabbitmq, etc
-func Transport(t transport.Transport) Option {
-	return func(o *Options) {
-		o.Transport = t
-	}
-}
-
-// Metadata associated with the server
-func Metadata(md map[string]string) Option {
-	return func(o *Options) {
-		o.Metadata = md
-	}
-}
-
-// RegisterCheck run func before registry service
-func RegisterCheck(fn func(context.Context) error) Option {
-	return func(o *Options) {
-		o.RegisterCheck = fn
 	}
 }
 
@@ -186,59 +79,9 @@ func RegisterInterval(t time.Duration) Option {
 	}
 }
 
-// TLSConfig specifies a *tls.Config
-func TLSConfig(t *tls.Config) Option {
-	return func(o *Options) {
-		// set the internal tls
-		o.TLSConfig = t
-
-		// set the default transport if one is not
-		// already set. Required for Init call below.
-		if o.Transport == nil {
-			o.Transport = transport.DefaultTransport
-		}
-
-		// set the transport tls
-		o.Transport.Init(
-			transport.Secure(true),
-			transport.TLSConfig(t),
-		)
-	}
-}
-
-// WithRouter sets the request router
-func WithRouter(r Router) Option {
-	return func(o *Options) {
-		o.Router = r
-	}
-}
-
-// Wait tells the server to wait for requests to finish before exiting
-// If `wg` is nil, server only wait for completion of rpc handler.
-// For user need finer grained control, pass a concrete `wg` here, server will
-// wait against it on stop.
-func Wait(wg *sync.WaitGroup) Option {
-	return func(o *Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		if wg == nil {
-			wg = new(sync.WaitGroup)
-		}
-		o.Context = context.WithValue(o.Context, "wait", wg)
-	}
-}
-
 // Adds a handler Wrapper to a list of options passed into the server
 func WrapHandler(w HandlerWrapper) Option {
 	return func(o *Options) {
 		o.HdlrWrappers = append(o.HdlrWrappers, w)
-	}
-}
-
-// Adds a subscriber Wrapper to a list of options passed into the server
-func WrapSubscriber(w SubscriberWrapper) Option {
-	return func(o *Options) {
-		o.SubWrappers = append(o.SubWrappers, w)
 	}
 }

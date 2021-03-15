@@ -2,7 +2,9 @@ package cache
 
 import (
 	util "github.com/w3liu/bull/infra/registry"
+	"github.com/w3liu/bull/logger"
 	"github.com/w3liu/bull/registry"
+	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 	"math"
 	"math/rand"
@@ -343,9 +345,7 @@ func (c *cache) run() {
 			c.setStatus(err)
 
 			if a > 3 {
-				//if logger.V(logger.DebugLevel, logger.DefaultLogger) {
-				//	logger.Debug("rcache: ", err, " backing off ", d)
-				//}
+				logger.Debug("rcache: ", zap.Error(err), zap.Any(" backing off ", d))
 				a = 0
 			}
 
@@ -368,9 +368,7 @@ func (c *cache) run() {
 			c.setStatus(err)
 
 			if b > 3 {
-				//if logger.V(logger.DebugLevel, logger.DefaultLogger) {
-				//	logger.Debug("rcache: ", err, " backing off ", d)
-				//}
+				logger.Debug("rcache: ", zap.Error(err), zap.Any(" backing off ", d))
 				b = 0
 			}
 

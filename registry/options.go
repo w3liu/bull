@@ -2,16 +2,13 @@ package registry
 
 import (
 	"context"
-	"crypto/tls"
 	"time"
 )
 
 type Options struct {
-	Addrs     []string
-	Timeout   time.Duration
-	Secure    bool
-	TLSConfig *tls.Config
-	Context   context.Context
+	Addrs   []string
+	Timeout time.Duration
+	Context context.Context
 }
 
 type RegisterOptions struct {
@@ -20,7 +17,11 @@ type RegisterOptions struct {
 }
 
 type WatchOptions struct {
+	// Specify a service to watch
+	// If blank, the watch is for all services
 	Service string
+	// Other options for implementations of the interface
+	// can be stored in a context
 	Context context.Context
 }
 
@@ -36,6 +37,12 @@ type ListOptions struct {
 	Context context.Context
 }
 
+type ResolverOptions struct {
+	Scheme  string
+	Service string
+	TimeOut time.Duration
+}
+
 func Addrs(addrs ...string) Option {
 	return func(o *Options) {
 		o.Addrs = addrs
@@ -48,18 +55,6 @@ func Timeout(t time.Duration) Option {
 	}
 }
 
-func Secure(b bool) Option {
-	return func(o *Options) {
-		o.Secure = b
-	}
-}
-
-func TLSConfig(t *tls.Config) Option {
-	return func(o *Options) {
-		o.TLSConfig = t
-	}
-}
-
 func RegisterTTL(t time.Duration) RegisterOption {
 	return func(o *RegisterOptions) {
 		o.TTL = t
@@ -68,12 +63,6 @@ func RegisterTTL(t time.Duration) RegisterOption {
 
 func RegisterContext(ctx context.Context) RegisterOption {
 	return func(o *RegisterOptions) {
-		o.Context = ctx
-	}
-}
-
-func WatchContext(ctx context.Context) WatchOption {
-	return func(o *WatchOptions) {
 		o.Context = ctx
 	}
 }
@@ -93,5 +82,24 @@ func GetContext(ctx context.Context) GetOption {
 func ListContext(ctx context.Context) ListOption {
 	return func(o *ListOptions) {
 		o.Context = ctx
+	}
+}
+
+func ResolverScheme(scheme string) ResolverOption {
+	return func(o *ResolverOptions) {
+		o.Scheme = scheme
+	}
+}
+
+func ResolverService(service string) ResolverOption {
+	return func(o *ResolverOptions) {
+		o.Service = service
+	}
+}
+
+// Watch a service
+func WatchService(name string) WatchOption {
+	return func(o *WatchOptions) {
+		o.Service = name
 	}
 }

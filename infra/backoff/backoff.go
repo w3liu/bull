@@ -1,4 +1,3 @@
-// Package backoff provides backoff functionality
 package backoff
 
 import (
