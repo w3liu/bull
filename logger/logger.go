@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"os"
 	"sync"
 	"time"
 )
@@ -33,7 +33,7 @@ func Sync() error {
 }
 
 func (env gteDebug) Enabled(l zapcore.Level) bool {
-	return l >= zapcore.DebugLevel
+	return l == zapcore.DebugLevel
 }
 
 func (env gteDebug) String() string {
@@ -41,7 +41,7 @@ func (env gteDebug) String() string {
 }
 
 func (env gteInfo) Enabled(l zapcore.Level) bool {
-	return l >= zapcore.InfoLevel
+	return l == zapcore.InfoLevel
 }
 
 func (env gteInfo) String() string {
@@ -57,7 +57,7 @@ func (env eqWarn) String() string {
 }
 
 func (env gteError) Enabled(l zapcore.Level) bool {
-	return l >= zapcore.ErrorLevel
+	return l == zapcore.ErrorLevel
 }
 
 func (env gteError) String() string {
@@ -81,7 +81,7 @@ func New(env Env) *zap.Logger {
 	for i, _ := range enablers {
 		cores = append(cores, newCore(enablers[i]))
 	}
-	logger := zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddCallerSkip(1), zap.AddStacktrace(zap.DPanicLevel))
+	logger := zap.New(zapcore.NewTee(cores...), zap.AddStacktrace(zap.DPanicLevel))
 	return logger
 }
 
@@ -128,13 +128,7 @@ func Errorf(msg string, field ...interface{}) {
 func newCore(enabler zapcore.LevelEnabler) zapcore.Core {
 	var encoder zapcore.Encoder
 	encoder = zapcore.NewConsoleEncoder(newEncoderConfig())
-	writer := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   fmt.Sprintf("./log/%s.log", enabler),
-		MaxSize:    100,  // 文件大小，单位：M
-		MaxBackups: 50,   // 备份数量
-		MaxAge:     365,  // 日志保留天数
-		Compress:   true, // 是否压缩
-	})
+	writer := zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout))
 	return zapcore.NewCore(encoder, writer, enabler)
 }
 
