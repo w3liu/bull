@@ -46,7 +46,7 @@ func (s *service) Server() server.Server {
 }
 
 func (s *service) String() string {
-	return "micro"
+	return "bull"
 }
 
 func (s *service) Start() error {
