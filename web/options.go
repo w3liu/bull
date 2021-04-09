@@ -29,3 +29,21 @@ func newOptions(opts ...Option) Options {
 	}
 	return options
 }
+
+func Name(name string) Option {
+	return func(options *Options) {
+		options.Name = name
+	}
+}
+
+func Context(ctx context.Context) Option {
+	return func(options *Options) {
+		options.Context = ctx
+	}
+}
+
+func Address(addr string) Option {
+	return func(options *Options) {
+		options.Address = addr
+	}
+}
