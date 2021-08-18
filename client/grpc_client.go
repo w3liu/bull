@@ -65,7 +65,7 @@ func (g *grpcClient) getConn() (*grpc.ClientConn, error) {
 		registry.ResolverScheme(scheme),
 	}
 	if g.opts.Service != "" {
-		registry.ResolverService(g.opts.Service)
+		resolverOptions = append(resolverOptions, registry.ResolverService(g.opts.Service))
 	}
 	registry.RegisterResolver(g.opts.Registry, resolverOptions...)
 

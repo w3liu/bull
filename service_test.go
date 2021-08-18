@@ -38,7 +38,7 @@ func runService(name string) error {
 	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
 	service := NewService(
 		Registry(r),
-		Server(server.NewServer(server.Name(fmt.Sprintf("%s_%d", "hello.svc", 0)))),
+		Server(server.NewServer(server.Name("hello.svc"))),
 	)
 	serv := service.Server()
 	grpcServer, ok := serv.Instance().(*grpc.Server)
