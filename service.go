@@ -14,12 +14,12 @@ type service struct {
 }
 
 func newService(opts ...Option) Service {
-	service := new(service)
+	svc := new(service)
 	options := newOptions(opts...)
 
-	service.opts = options
+	svc.opts = options
 
-	return service
+	return svc
 }
 
 func (s *service) Name() string {

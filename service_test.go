@@ -36,16 +36,14 @@ func TestService3(t *testing.T) {
 
 func runService(name string) error {
 	r := registry.NewRegistry(registry.Addrs([]string{"127.0.0.1:2379"}...))
+
+	srv := server.NewGrpcServer(server.Name("hello.svc"))
+
 	service := NewService(
 		Registry(r),
-		Server(server.NewServer(server.Name("hello.svc"))),
+		Server(srv),
 	)
-	serv := service.Server()
-	grpcServer, ok := serv.Instance().(*grpc.Server)
-	if !ok {
-		panic("not grpc server")
-	}
-	pb.RegisterPersonServer(grpcServer, &handler.Person{Name: name})
+	pb.RegisterPersonServer(srv.Server, &handler.Person{Name: name})
 	err := service.Run()
 	return err
 }

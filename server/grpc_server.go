@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-type grpcServer struct {
-	srv  *grpc.Server
+type GrpcServer struct {
+	*grpc.Server
 	exit chan chan error
 	wg   *sync.WaitGroup
 
@@ -27,11 +27,10 @@ type grpcServer struct {
 	rsvc       *registry.Service
 }
 
-func newServer(opts ...Option) Server {
+func NewGrpcServer(opts ...Option) *GrpcServer {
 	options := newOptions(opts...)
 
-	srv := &grpcServer{
-		srv:        nil,
+	srv := &GrpcServer{
 		exit:       make(chan chan error),
 		wg:         wait(options.Context),
 		RWMutex:    sync.RWMutex{},
@@ -46,12 +45,12 @@ func newServer(opts ...Option) Server {
 	return srv
 }
 
-func (g *grpcServer) configure(opts ...Option) {
+func (g *GrpcServer) configure(opts ...Option) {
 	g.Lock()
 	defer g.Unlock()
 
 	// Don't reprocess where there's no config
-	if len(opts) == 0 && g.srv != nil {
+	if len(opts) == 0 && g.Server != nil {
 		return
 	}
 
@@ -67,15 +66,15 @@ func (g *grpcServer) configure(opts ...Option) {
 	}
 
 	g.rsvc = nil
-	g.srv = grpc.NewServer(gopts...)
+	g.Server = grpc.NewServer(gopts...)
 }
 
-func (g *grpcServer) Init(opts ...Option) error {
+func (g *GrpcServer) Init(opts ...Option) error {
 	g.configure(opts...)
 	return nil
 }
 
-func (g *grpcServer) Options() Options {
+func (g *GrpcServer) Options() Options {
 
 	g.RLock()
 	opts := g.opts
@@ -84,7 +83,7 @@ func (g *grpcServer) Options() Options {
 	return opts
 }
 
-func (g *grpcServer) Start() error {
+func (g *GrpcServer) Start() error {
 	g.RLock()
 	if g.started {
 		g.RUnlock()
@@ -109,7 +108,7 @@ func (g *grpcServer) Start() error {
 	}
 
 	go func() {
-		if err := g.srv.Serve(ts); err != nil {
+		if err := g.Server.Serve(ts); err != nil {
 			logger.Errorf("gRPC Server start error: %v", err)
 		}
 	}()
@@ -154,14 +153,14 @@ func (g *grpcServer) Start() error {
 		exit := make(chan bool)
 
 		go func() {
-			g.srv.GracefulStop()
+			g.Server.GracefulStop()
 			close(exit)
 		}()
 
 		select {
 		case <-exit:
 		case <-time.After(time.Second):
-			g.srv.Stop()
+			g.Server.Stop()
 		}
 
 		// close transport
@@ -175,7 +174,7 @@ func (g *grpcServer) Start() error {
 	return nil
 }
 
-func (g *grpcServer) Stop() error {
+func (g *GrpcServer) Stop() error {
 	g.RLock()
 	if !g.started {
 		g.RUnlock()
@@ -198,15 +197,15 @@ func (g *grpcServer) Stop() error {
 	return err
 }
 
-func (g *grpcServer) String() string {
+func (g *GrpcServer) String() string {
 	return "grpc"
 }
 
-func (g *grpcServer) Instance() interface{} {
-	return g.srv
+func (g *GrpcServer) Instance() *grpc.Server {
+	return g.Server
 }
 
-func (g *grpcServer) Register() error {
+func (g *GrpcServer) Register() error {
 	g.RLock()
 	rsvc := g.rsvc
 	config := g.opts
@@ -315,7 +314,7 @@ func (g *grpcServer) Register() error {
 	return nil
 }
 
-func (g *grpcServer) Deregister() error {
+func (g *GrpcServer) Deregister() error {
 	var err error
 	var address, host, port string
 

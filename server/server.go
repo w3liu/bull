@@ -6,14 +6,16 @@ import (
 )
 
 var (
-	DefaultAddress                 = ":0"
-	DefaultName                    = "go.bull.server"
-	DefaultVersion                 = "latest"
-	DefaultId                      = uuid.New().String()
-	DefaultServer           Server = newServer()
-	DefaultRegisterInterval        = time.Second * 10
-	DefaultRegisterTTL             = time.Second * 30
+	DefaultAddress          = ":0"
+	DefaultName             = "go.bull.server"
+	DefaultVersion          = "latest"
+	DefaultId               = uuid.New().String()
+	DefaultServer           = NewGrpcServer()
+	DefaultRegisterInterval = time.Second * 10
+	DefaultRegisterTTL      = time.Second * 30
 )
+
+type HandFunc func(srv interface{}, obj interface{})
 
 type Server interface {
 	// Initialise options
@@ -26,8 +28,6 @@ type Server interface {
 	Stop() error
 	// Server implementation
 	String() string
-	// Instance
-	Instance() interface{}
 }
 
 type Request interface {
@@ -50,5 +50,5 @@ type Request interface {
 type Option func(*Options)
 
 func NewServer(opts ...Option) Server {
-	return newServer(opts...)
+	return NewGrpcServer(opts...)
 }
